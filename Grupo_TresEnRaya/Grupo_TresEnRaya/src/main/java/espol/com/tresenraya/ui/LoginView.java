@@ -2,6 +2,9 @@ package espol.com.tresenraya.ui;
 
 import espol.com.tresenraya.model.User;
 import espol.com.tresenraya.model.UserRepository;
+import javafx.animation.FadeTransition;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -12,13 +15,24 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 public final class LoginView extends StackPane {
+    private static final List<String> BACKGROUNDS = List.of(
+            "/images/momazos.jpeg", "/images/space-cats.jpeg", "/images/kitty-burrito.jpg",
+            "/images/pizza-cat.jpeg", "/images/nyan-cat.jpeg", "/images/burger-cat.jpeg",
+            "/images/floating-cat.jpeg", "/images/laser-cats.jpeg", "/images/earth-cat.jpeg",
+            "/images/planet-cat.jpeg", "/images/close-cat.jpeg");
+
     private final UserRepository repository;
     private final Consumer<User> onEnter;
     private final VBox card;
+    private final ImageView background = new ImageView();
+    private Timeline backgroundTimer;
+    private int backgroundIndex;
     private String registrationEmail;
     private String registrationPassword;
 
@@ -27,8 +41,6 @@ public final class LoginView extends StackPane {
         this.onEnter = onEnter;
         getStyleClass().add("login-root");
 
-        Image image = new Image(getClass().getResourceAsStream("/images/astronaut-cat.png"));
-        ImageView background = new ImageView(image);
         background.setPreserveRatio(false);
         background.fitWidthProperty().bind(widthProperty());
         background.fitHeightProperty().bind(heightProperty());
@@ -46,6 +58,8 @@ public final class LoginView extends StackPane {
         StackPane.setMargin(card, new Insets(40, 40, 40, 80));
 
         getChildren().addAll(background, shade, card);
+        showFirstBackground();
+        startBackgroundRotation();
         showLoginForm();
     }
 
@@ -82,11 +96,20 @@ public final class LoginView extends StackPane {
             return;
         }
 
-        User user = repository.login(email, password);
-        if (user == null) {
-            error.setText("Correo o contraseña incorrectos");
+        if (repository.findByEmail(email) == null) {
+            error.setText("Esta cuenta no está registrada. Debes crear una cuenta.");
+            SoundPlayer.playError();
             return;
         }
+
+        User user = repository.login(email, password);
+        if (user == null) {
+            error.setText("La contraseña es incorrecta");
+            SoundPlayer.playError();
+            return;
+        }
+        SoundPlayer.playSuccess();
+        stopBackgroundRotation();
         onEnter.accept(user);
     }
 
@@ -108,6 +131,7 @@ public final class LoginView extends StackPane {
 
         registrationEmail = email;
         registrationPassword = password;
+        SoundPlayer.playClick();
         showNameForm();
     }
 
@@ -144,8 +168,11 @@ public final class LoginView extends StackPane {
         User user = repository.register(registrationEmail, registrationPassword, name);
         if (user == null) {
             error.setText("No se pudo crear el usuario");
+            SoundPlayer.playError();
             return;
         }
+        SoundPlayer.playSuccess();
+        stopBackgroundRotation();
         onEnter.accept(user);
     }
 
@@ -176,5 +203,52 @@ public final class LoginView extends StackPane {
         Label label = new Label();
         label.getStyleClass().add("form-error");
         return label;
+    }
+
+    // Muestra el primer fondo
+    private void showFirstBackground() {
+        backgroundIndex = 0;
+        String imagePath = BACKGROUNDS.get(backgroundIndex);
+        Image image = new Image(getClass().getResourceAsStream(imagePath));
+        background.setImage(image);
+    }
+
+    // Cambia el fondo cada diez segundos
+    private void startBackgroundRotation() {
+        KeyFrame change = new KeyFrame(Duration.seconds(10), event -> changeBackground());
+        backgroundTimer = new Timeline(change);
+        backgroundTimer.setCycleCount(Timeline.INDEFINITE);
+        backgroundTimer.play();
+    }
+
+    // Cambia la imagen con una transicion suave
+    private void changeBackground() {
+        FadeTransition fadeOut = new FadeTransition(Duration.seconds(1), background);
+        fadeOut.setFromValue(1);
+        fadeOut.setToValue(0);
+        fadeOut.setOnFinished(event -> showNextBackground());
+        fadeOut.play();
+    }
+
+    private void showNextBackground() {
+        backgroundIndex++;
+        if (backgroundIndex >= BACKGROUNDS.size()) {
+            backgroundIndex = 0;
+        }
+
+        String imagePath = BACKGROUNDS.get(backgroundIndex);
+        Image image = new Image(getClass().getResourceAsStream(imagePath));
+        background.setImage(image);
+
+        FadeTransition fadeIn = new FadeTransition(Duration.seconds(1), background);
+        fadeIn.setFromValue(0);
+        fadeIn.setToValue(1);
+        fadeIn.play();
+    }
+
+    private void stopBackgroundRotation() {
+        if (backgroundTimer != null) {
+            backgroundTimer.stop();
+        }
     }
 }

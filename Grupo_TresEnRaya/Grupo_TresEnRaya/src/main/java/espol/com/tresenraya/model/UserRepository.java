@@ -50,6 +50,35 @@ public class UserRepository {
         return user;
     }
 
+    // Ordena los usuarios para el ranking
+    public ArrayList<User> getRanking() {
+        ArrayList<User> ranking = new ArrayList<>(users);
+
+        for (int i = 0; i < ranking.size() - 1; i++) {
+            for (int j = i + 1; j < ranking.size(); j++) {
+                User first = ranking.get(i);
+                User second = ranking.get(j);
+
+                if (shouldGoFirst(second, first)) {
+                    ranking.set(i, second);
+                    ranking.set(j, first);
+                }
+            }
+        }
+        return ranking;
+    }
+
+    private boolean shouldGoFirst(User first, User second) {
+        if (first.getWins() > second.getWins()) {
+            return true;
+        }
+        if (first.getWins() == second.getWins()
+                && first.getRegistrationDate() > second.getRegistrationDate()) {
+            return true;
+        }
+        return false;
+    }
+
     public void saveUsers() {
         try (ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(file))) {
             output.writeObject(users);

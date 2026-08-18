@@ -11,6 +11,7 @@ public class User implements Serializable {
     private int wins;
     private int losses;
     private int draws;
+    private long registrationDate;
 
     public User(String email, String password, String name) {
         this.email = email;
@@ -19,6 +20,7 @@ public class User implements Serializable {
         this.wins = 0;
         this.losses = 0;
         this.draws = 0;
+        this.registrationDate = System.currentTimeMillis();
     }
 
     public String getEmail() {
@@ -43,6 +45,10 @@ public class User implements Serializable {
 
     public int getDraws() {
         return draws;
+    }
+
+    public long getRegistrationDate() {
+        return registrationDate;
     }
 
     public int getTotalGames() {

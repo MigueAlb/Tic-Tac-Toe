@@ -8,13 +8,17 @@ import espol.com.tresenraya.model.Mark;
 import espol.com.tresenraya.model.Move;
 import espol.com.tresenraya.model.User;
 import espol.com.tresenraya.model.UserRepository;
+import javafx.animation.FadeTransition;
+import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
@@ -34,13 +38,16 @@ import java.util.List;
 
 public final class GameView extends StackPane {
     private static final List<String> BACKGROUNDS = List.of(
-            "/images/astronaut-cat.png", "/images/purple-galaxy.jpeg", "/images/cosmic-cat.jpeg",
-            "/images/cosmic-koi.gif", "/images/pink-cat.jpeg", "/images/cosmic-flowers.jpeg");
+            "/images/momazos.jpeg", "/images/space-cats.jpeg", "/images/kitty-burrito.jpg",
+            "/images/pizza-cat.jpeg", "/images/nyan-cat.jpeg", "/images/burger-cat.jpeg",
+            "/images/floating-cat.jpeg", "/images/laser-cats.jpeg", "/images/earth-cat.jpeg",
+            "/images/planet-cat.jpeg", "/images/close-cat.jpeg");
 
     private final User user;
     private final UserRepository userRepository;
     private final GameMode gameMode;
     private final Runnable onChangeMode;
+    private final Runnable onLogout;
     private final GameSession game = new GameSession();
     private final List<Decision> decisionHistory = new ArrayList<>();
     private final ImageView background = new ImageView();
@@ -62,25 +69,30 @@ public final class GameView extends StackPane {
     private final Label lossesValue = new Label();
     private final Label drawsValue = new Label();
     private final Button decisionTreeButton = new Button("VER ÁRBOL DE DECISIONES");
-    private int backgroundIndex = -1;
+    private Timeline backgroundTimer;
+    private int backgroundIndex = 0;
     private boolean playing;
     private boolean resultRecorded;
 
-    public GameView(User user, UserRepository userRepository, GameMode gameMode, Runnable onChangeMode) {
+    public GameView(User user, UserRepository userRepository, GameMode gameMode,
+            Runnable onChangeMode, Runnable onLogout) {
         this.user = user;
         this.userRepository = userRepository;
         this.gameMode = gameMode;
         this.onChangeMode = onChangeMode;
+        this.onLogout = onLogout;
         getStyleClass().add("game-root");
         configureBackground();
         getChildren().addAll(background, createTint(), createLayout(), createResultOverlay());
+        showFirstBackground();
+        startBackgroundRotation();
         configureControlsForMode();
         startGame();
     }
 
     /** Constructor de compatibilidad: abre directamente contra Mishi. */
     public GameView(User user, UserRepository userRepository) {
-        this(user, userRepository, GameMode.PLAYER_VS_MACHINE, () -> { });
+        this(user, userRepository, GameMode.PLAYER_VS_MACHINE, () -> { }, () -> { });
     }
 
     private void configureBackground() {
@@ -120,10 +132,28 @@ public final class GameView extends StackPane {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         Label welcome = new Label("Tripulante\n" + user.getName());
         welcome.getStyleClass().add("player-chip");
-        HBox header = new HBox(20, titles, spacer, welcome);
+
+        Button ranking = createMenuButton("RANKING");
+        ranking.setOnAction(event -> showRanking());
+
+        Button sound = createMenuButton("SONIDO: SÍ");
+        sound.setOnAction(event -> changeSound(sound));
+
+        Button logout = createMenuButton("CERRAR SESIÓN");
+        logout.setOnAction(event -> logout());
+
+        HBox menu = new HBox(8, ranking, sound, logout, welcome);
+        menu.setAlignment(Pos.CENTER_RIGHT);
+        HBox header = new HBox(20, titles, spacer, menu);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(24, 34, 12, 34));
         return header;
+    }
+
+    private Button createMenuButton(String text) {
+        Button button = new Button(text);
+        button.getStyleClass().add("menu-button");
+        return button;
     }
 
     private StackPane createBoard() {
@@ -180,7 +210,7 @@ public final class GameView extends StackPane {
         Button changeMode = new Button("← CAMBIAR MODO");
         changeMode.getStyleClass().add("ghost-button");
         changeMode.setMaxWidth(Double.MAX_VALUE);
-        changeMode.setOnAction(event -> onChangeMode.run());
+        changeMode.setOnAction(event -> changeMode());
 
         analysis.setEditable(false);
         analysis.setWrapText(true);
@@ -227,15 +257,20 @@ public final class GameView extends StackPane {
     }
 
     private String modeGreeting() {
-        return switch (gameMode) {
-            case PLAYER_VS_PLAYER -> "Dos tripulantes, una galaxia. Tú controlas ambos lados del tablero.";
-            case PLAYER_VS_MACHINE -> "Hola, " + user.getName() + ". Elige tu ficha y prepárate para enfrentar a Mishi.";
-            case MACHINE_VS_MACHINE -> "Observa a dos Mishi competir. La partida avanzará automáticamente.";
-        };
+        if (gameMode == GameMode.PLAYER_VS_PLAYER) {
+            return "Dos tripulantes, una galaxia. Tú controlas ambos lados del tablero.";
+        }
+        if (gameMode == GameMode.PLAYER_VS_MACHINE) {
+            return "Hola, " + user.getName() + ". Elige tu ficha y prepárate para enfrentar a Mishi.";
+        }
+        return "Observa a dos Mishi competir. La partida avanzará automáticamente.";
     }
 
     private String modeMarkCaption() {
-        return gameMode == GameMode.PLAYER_VS_MACHINE ? "Tu ficha" : "Ficha del Jugador 1 / Mishi X";
+        if (gameMode == GameMode.PLAYER_VS_MACHINE) {
+            return "Tu ficha";
+        }
+        return "Ficha del Jugador 1 / Mishi X";
     }
 
     private HBox createHistory() {
@@ -316,10 +351,13 @@ public final class GameView extends StackPane {
 
     private void startGame() {
         hideResult();
-        changeBackground();
         resultRecorded = false;
+        SoundPlayer.playClick();
 
-        Mark playerOneMark = xButton.isSelected() ? Mark.X : Mark.O;
+        Mark playerOneMark = Mark.O;
+        if (xButton.isSelected()) {
+            playerOneMark = Mark.X;
+        }
         boolean playerOneStarts = firstPlayerStarts.isSelected();
         game.start(gameMode, playerOneMark, playerOneStarts);
         playing = true;
@@ -337,6 +375,7 @@ public final class GameView extends StackPane {
         }
         try {
             game.playHumanMove(move);
+            SoundPlayer.playClick();
         } catch (IllegalArgumentException | IllegalStateException exception) {
             status.setText(exception.getMessage());
             return;
@@ -355,11 +394,15 @@ public final class GameView extends StackPane {
         }
 
         setBoardDisabled(true);
-        status.setText(gameMode == GameMode.MACHINE_VS_MACHINE
-                ? "Mishi está calculando la siguiente órbita..."
-                : "Mishi consulta las estrellas...");
+        long waitTime = 450;
+        if (gameMode == GameMode.MACHINE_VS_MACHINE) {
+            status.setText("Mishi está calculando la siguiente órbita...");
+            waitTime = 650;
+        } else {
+            status.setText("Mishi consulta las estrellas...");
+        }
 
-        PauseTransition pause = new PauseTransition(Duration.millis(gameMode == GameMode.MACHINE_VS_MACHINE ? 650 : 450));
+        PauseTransition pause = new PauseTransition(Duration.millis(waitTime));
         pause.setOnFinished(event -> playMachineTurn());
         pause.play();
     }
@@ -380,9 +423,10 @@ public final class GameView extends StackPane {
     }
 
     private void showDecision(Decision decision) {
-        String actor = gameMode == GameMode.MACHINE_VS_MACHINE
-                ? "Mishi " + game.currentTurn().opposite().symbol()
-                : "Mishi";
+        String actor = "Mishi";
+        if (gameMode == GameMode.MACHINE_VS_MACHINE) {
+            actor = "Mishi " + game.currentTurn().opposite().symbol();
+        }
         StringBuilder text = new StringBuilder();
         text.append(actor).append(" eligió ").append(decision.getMove().display()).append('.').append('\n');
         text.append("Valor minimax: ").append(decision.getMinimaxValue()).append("\n\n");
@@ -432,7 +476,7 @@ public final class GameView extends StackPane {
             user.addDraw();
             showResult("✦", "Órbita compartida", "Empate, " + user.getName() + ". Ningún tripulante conquistó esta galaxia.");
         } else if (gameMode == GameMode.PLAYER_VS_PLAYER) {
-            Mark winner = result == GameResult.X_WINS ? Mark.X : Mark.O;
+            Mark winner = getWinner(result);
             if (winner == game.playerOneMark()) {
                 user.addWin();
                 showResult("★", "¡Jugador 1 gana!", "La ficha " + winner.symbol() + " conquistó la galaxia.");
@@ -441,7 +485,7 @@ public final class GameView extends StackPane {
                 showResult("★", "¡Jugador 2 gana!", "La ficha " + winner.symbol() + " conquistó la galaxia.");
             }
         } else {
-            Mark winner = result == GameResult.X_WINS ? Mark.X : Mark.O;
+            Mark winner = getWinner(result);
             if (winner == game.humanMark()) {
                 user.addWin();
                 showResult("★", "¡Misión cumplida!", "Ganaste, " + user.getName() + ". Mishi reconoce tu destreza espacial.");
@@ -456,12 +500,23 @@ public final class GameView extends StackPane {
     }
 
     private String resultTitleForMachineGame(GameResult result) {
-        return switch (result) {
-            case DRAW -> "Equilibrio cósmico";
-            case X_WINS -> "Gana Mishi X";
-            case O_WINS -> "Gana Mishi O";
-            case IN_PROGRESS -> "Partida en curso";
-        };
+        if (result == GameResult.DRAW) {
+            return "Equilibrio cósmico";
+        }
+        if (result == GameResult.X_WINS) {
+            return "Gana Mishi X";
+        }
+        if (result == GameResult.O_WINS) {
+            return "Gana Mishi O";
+        }
+        return "Partida en curso";
+    }
+
+    private Mark getWinner(GameResult result) {
+        if (result == GameResult.X_WINS) {
+            return Mark.X;
+        }
+        return Mark.O;
     }
 
     private void showDecisionTree() {
@@ -490,11 +545,17 @@ public final class GameView extends StackPane {
     private void updateStatus() {
         if (!playing) return;
         if (game.isMachineTurn()) {
-            status.setText(gameMode == GameMode.MACHINE_VS_MACHINE
-                    ? "Mishi está pensando..."
-                    : "Turno de Mishi");
+            if (gameMode == GameMode.MACHINE_VS_MACHINE) {
+                status.setText("Mishi está pensando...");
+            } else {
+                status.setText("Turno de Mishi");
+            }
         } else if (gameMode == GameMode.PLAYER_VS_PLAYER) {
-            status.setText("Turno del Jugador " + (game.currentTurn() == game.playerOneMark() ? "1" : "2") + " (" + game.currentTurn().symbol() + ")");
+            String playerNumber = "2";
+            if (game.currentTurn() == game.playerOneMark()) {
+                playerNumber = "1";
+            }
+            status.setText("Turno del Jugador " + playerNumber + " (" + game.currentTurn().symbol() + ")");
         } else {
             status.setText(user.getName() + ", es tu turno: elige una órbita libre");
         }
@@ -507,10 +568,129 @@ public final class GameView extends StackPane {
         }
     }
 
-    private void changeBackground() {
-        backgroundIndex = (backgroundIndex + 1) % BACKGROUNDS.size();
+    private void showFirstBackground() {
         background.setImage(new Image(getClass().getResourceAsStream(BACKGROUNDS.get(backgroundIndex))));
         updateBackgroundCrop();
+    }
+
+    // Cambia el fondo cada diez segundos
+    private void startBackgroundRotation() {
+        KeyFrame change = new KeyFrame(Duration.seconds(10), event -> changeBackground());
+        backgroundTimer = new Timeline(change);
+        backgroundTimer.setCycleCount(Timeline.INDEFINITE);
+        backgroundTimer.play();
+    }
+
+    // Cambia la imagen con una transicion suave
+    private void changeBackground() {
+        FadeTransition fadeOut = new FadeTransition(Duration.seconds(1), background);
+        fadeOut.setFromValue(1);
+        fadeOut.setToValue(0);
+        fadeOut.setOnFinished(event -> {
+            backgroundIndex++;
+            if (backgroundIndex >= BACKGROUNDS.size()) {
+                backgroundIndex = 0;
+            }
+            background.setImage(new Image(
+                    getClass().getResourceAsStream(BACKGROUNDS.get(backgroundIndex))));
+            updateBackgroundCrop();
+
+            FadeTransition fadeIn = new FadeTransition(Duration.seconds(1), background);
+            fadeIn.setFromValue(0);
+            fadeIn.setToValue(1);
+            fadeIn.play();
+        });
+        fadeOut.play();
+    }
+
+    // Abre la ventana del ranking
+    private void showRanking() {
+        StackPane overlay = new StackPane();
+        overlay.getStyleClass().add("ranking-overlay");
+
+        Label title = new Label("Ranking de tripulantes");
+        title.getStyleClass().add("ranking-title");
+        Label note = new Label("Ordenado por victorias y fecha de registro");
+        note.getStyleClass().add("ranking-note");
+
+        VBox positions = createRankingList();
+        ScrollPane list = new ScrollPane(positions);
+        list.getStyleClass().add("ranking-scroll");
+        list.setFitToWidth(true);
+        list.setMaxHeight(300);
+
+        Button close = new Button("CERRAR");
+        close.getStyleClass().add("space-button");
+        close.setMaxWidth(Double.MAX_VALUE);
+        close.setOnAction(event -> getChildren().remove(overlay));
+
+        VBox card = new VBox(15, title, note, list, close);
+        card.getStyleClass().add("ranking-card");
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(28));
+        card.setMaxWidth(430);
+        card.setMaxHeight(USE_PREF_SIZE);
+        overlay.getChildren().add(card);
+        getChildren().add(overlay);
+        SoundPlayer.playClick();
+    }
+
+    // Crea las filas del ranking
+    private VBox createRankingList() {
+        VBox positions = new VBox(9);
+        ArrayList<User> ranking = userRepository.getRanking();
+
+        if (ranking.isEmpty()) {
+            Label empty = new Label("Todavía no hay jugadores en el ranking");
+            empty.getStyleClass().add("ranking-note");
+            positions.getChildren().add(empty);
+            return positions;
+        }
+
+        for (int i = 0; i < ranking.size(); i++) {
+            User rankedUser = ranking.get(i);
+            String score = rankedUser.getWins() + " victorias";
+            positions.getChildren().add(createRankingRow(
+                    String.valueOf(i + 1), rankedUser.getName(), score));
+        }
+        return positions;
+    }
+
+    private HBox createRankingRow(String position, String name, String score) {
+        Label number = new Label(position);
+        number.getStyleClass().add("ranking-number");
+        Label player = new Label(name);
+        player.getStyleClass().add("ranking-player");
+        Label result = new Label(score);
+        result.getStyleClass().add("ranking-score");
+        Region space = new Region();
+        HBox.setHgrow(space, Priority.ALWAYS);
+        HBox row = new HBox(12, number, player, space, result);
+        row.getStyleClass().add("ranking-row");
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    // Activa o silencia los sonidos
+    private void changeSound(Button soundButton) {
+        if (SoundPlayer.isEnabled()) {
+            SoundPlayer.setEnabled(false);
+            soundButton.setText("SONIDO: NO");
+        } else {
+            SoundPlayer.setEnabled(true);
+            soundButton.setText("SONIDO: SÍ");
+            SoundPlayer.playClick();
+        }
+    }
+
+    private void changeMode() {
+        backgroundTimer.stop();
+        onChangeMode.run();
+    }
+
+    private void logout() {
+        backgroundTimer.stop();
+        onLogout.run();
     }
 
     private void updateBackgroundCrop() {
