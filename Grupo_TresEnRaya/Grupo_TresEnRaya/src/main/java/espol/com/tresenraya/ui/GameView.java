@@ -29,6 +29,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class GameView extends StackPane {
@@ -41,6 +42,7 @@ public final class GameView extends StackPane {
     private final GameMode gameMode;
     private final Runnable onChangeMode;
     private final GameSession game = new GameSession();
+    private final List<Decision> decisionHistory = new ArrayList<>();
     private final ImageView background = new ImageView();
     private final Button[][] cells = new Button[3][3];
     private final ToggleButton xButton = new ToggleButton("X");
@@ -59,6 +61,7 @@ public final class GameView extends StackPane {
     private final Label winsValue = new Label();
     private final Label lossesValue = new Label();
     private final Label drawsValue = new Label();
+    private final Button decisionTreeButton = new Button("VER ÁRBOL DE DECISIONES");
     private int backgroundIndex = -1;
     private boolean playing;
     private boolean resultRecorded;
@@ -291,10 +294,15 @@ public final class GameView extends StackPane {
             hideResult();
             startGame();
         });
+        decisionTreeButton.getStyleClass().add("ghost-button");
+        decisionTreeButton.setVisible(false);
+        decisionTreeButton.setManaged(false);
+        decisionTreeButton.setOnAction(event -> showDecisionTree());
+
         Button review = new Button("REVISAR TABLERO");
         review.getStyleClass().add("ghost-button");
         review.setOnAction(event -> hideResult());
-        HBox actions = new HBox(10, again, review);
+        HBox actions = new HBox(10, again, decisionTreeButton, review);
         actions.setAlignment(Pos.CENTER);
         VBox card = new VBox(12, resultEmoji, resultTitle, resultMessage, actions);
         card.getStyleClass().add("result-card");
@@ -316,6 +324,9 @@ public final class GameView extends StackPane {
         game.start(gameMode, playerOneMark, playerOneStarts);
         playing = true;
         analysis.clear();
+        decisionHistory.clear();
+        decisionTreeButton.setVisible(false);
+        decisionTreeButton.setManaged(false);
         renderBoard();
         runAutomaticTurnIfNeeded();
     }
@@ -359,6 +370,7 @@ public final class GameView extends StackPane {
         }
 
         Decision decision = game.playMachineMove();
+        decisionHistory.add(decision);
         showDecision(decision);
         renderBoard();
         if (finishIfNeeded()) {
@@ -408,6 +420,9 @@ public final class GameView extends StackPane {
         resultRecorded = true;
 
         GameResult result = game.result();
+        boolean hasDecisionTree = !decisionHistory.isEmpty();
+        decisionTreeButton.setVisible(hasDecisionTree);
+        decisionTreeButton.setManaged(hasDecisionTree);
         if (gameMode == GameMode.MACHINE_VS_MACHINE) {
             showResult("⚔", resultTitleForMachineGame(result), "La simulación terminó. Puedes revisar el tablero o lanzar otra partida.");
             return true;
@@ -447,6 +462,16 @@ public final class GameView extends StackPane {
             case O_WINS -> "Gana Mishi O";
             case IN_PROGRESS -> "Partida en curso";
         };
+    }
+
+    private void showDecisionTree() {
+        if (decisionHistory.isEmpty()) {
+            return;
+        }
+
+        DecisionTreeView treeView = new DecisionTreeView(
+                user.getName(), gameMode, decisionHistory);
+        treeView.show();
     }
 
     private void showResult(String emoji, String title, String message) {
