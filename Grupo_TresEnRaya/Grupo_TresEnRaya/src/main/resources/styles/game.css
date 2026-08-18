@@ -142,3 +142,110 @@
 .result-emoji { -fx-font-size: 50px; -fx-text-fill: #ffd88a; }
 .result-title { -fx-font-size: 27px; -fx-font-weight: 800; -fx-text-fill: #fff5dd; }
 .result-message { -fx-font-size: 15px; -fx-text-fill: #d5c6df; -fx-text-alignment: center; }
+
+.game-root {
+    -fx-background-color: #050B18;
+}
+
+.game-tint {
+    -fx-background-color: rgba(3, 8, 22, 0.58);
+}
+
+.mode-container {
+    -fx-background-color: rgba(5, 15, 35, 0.35);
+    -fx-background-radius: 28px;
+}
+
+.eyebrow {
+    -fx-text-fill: #8FD8FF;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-letter-spacing: 2px;
+}
+
+.mode-title {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 40px;
+    -fx-font-weight: bold;
+}
+
+.subtitle {
+    -fx-text-fill: #E7F4FF;
+    -fx-font-size: 17px;
+}
+
+.panel-copy {
+    -fx-text-fill: #C9E6FF;
+    -fx-font-size: 14px;
+}
+
+.mode-card {
+    -fx-background-color: rgba(12, 39, 78, 0.94);
+    -fx-background-radius: 20px;
+
+    -fx-border-color: rgba(105, 196, 255, 0.72);
+    -fx-border-width: 1.5px;
+    -fx-border-radius: 20px;
+
+    -fx-padding: 20px;
+
+    -fx-cursor: hand;
+}
+
+.mode-card:hover {
+    -fx-background-color: rgba(23, 65, 122, 0.97);
+
+    -fx-border-color: #72D0FF;
+    -fx-border-width: 2px;
+
+    -fx-effect: dropshadow(
+        gaussian,
+        rgba(76, 183, 255, 0.65),
+        20,
+        0.35,
+        0,
+        0
+    );
+}
+
+.mode-card:pressed {
+    -fx-background-color: rgba(8, 31, 67, 0.98);
+
+    -fx-border-color: #A8E5FF;
+
+    -fx-effect: dropshadow(
+        gaussian,
+        rgba(76, 183, 255, 0.85),
+        14,
+        0.3,
+        0,
+        0
+    );
+}
+
+.mode-icon {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 54px;
+    -fx-font-weight: bold;
+}
+
+.mode-card-title {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+}
+
+.mode-card-description {
+    -fx-text-fill: #D8EDFF;
+    -fx-font-size: 14px;
+    -fx-line-spacing: 2px;
+}
+
+.button {
+    -fx-focus-traversable: false;
+}
+
+.mode-card:focused {
+    -fx-border-color: #A8E5FF;
+    -fx-border-width: 2px;
+}
