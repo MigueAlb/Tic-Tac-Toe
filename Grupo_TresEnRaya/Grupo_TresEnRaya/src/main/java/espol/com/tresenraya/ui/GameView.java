@@ -257,15 +257,20 @@ public final class GameView extends StackPane {
     }
 
     private String modeGreeting() {
-        return switch (gameMode) {
-            case PLAYER_VS_PLAYER -> "Dos tripulantes, una galaxia. Tú controlas ambos lados del tablero.";
-            case PLAYER_VS_MACHINE -> "Hola, " + user.getName() + ". Elige tu ficha y prepárate para enfrentar a Mishi.";
-            case MACHINE_VS_MACHINE -> "Observa a dos Mishi competir. La partida avanzará automáticamente.";
-        };
+        if (gameMode == GameMode.PLAYER_VS_PLAYER) {
+            return "Dos tripulantes, una galaxia. Tú controlas ambos lados del tablero.";
+        }
+        if (gameMode == GameMode.PLAYER_VS_MACHINE) {
+            return "Hola, " + user.getName() + ". Elige tu ficha y prepárate para enfrentar a Mishi.";
+        }
+        return "Observa a dos Mishi competir. La partida avanzará automáticamente.";
     }
 
     private String modeMarkCaption() {
-        return gameMode == GameMode.PLAYER_VS_MACHINE ? "Tu ficha" : "Ficha del Jugador 1 / Mishi X";
+        if (gameMode == GameMode.PLAYER_VS_MACHINE) {
+            return "Tu ficha";
+        }
+        return "Ficha del Jugador 1 / Mishi X";
     }
 
     private HBox createHistory() {
@@ -349,7 +354,10 @@ public final class GameView extends StackPane {
         resultRecorded = false;
         SoundPlayer.playClick();
 
-        Mark playerOneMark = xButton.isSelected() ? Mark.X : Mark.O;
+        Mark playerOneMark = Mark.O;
+        if (xButton.isSelected()) {
+            playerOneMark = Mark.X;
+        }
         boolean playerOneStarts = firstPlayerStarts.isSelected();
         game.start(gameMode, playerOneMark, playerOneStarts);
         playing = true;
@@ -386,11 +394,15 @@ public final class GameView extends StackPane {
         }
 
         setBoardDisabled(true);
-        status.setText(gameMode == GameMode.MACHINE_VS_MACHINE
-                ? "Mishi está calculando la siguiente órbita..."
-                : "Mishi consulta las estrellas...");
+        long waitTime = 450;
+        if (gameMode == GameMode.MACHINE_VS_MACHINE) {
+            status.setText("Mishi está calculando la siguiente órbita...");
+            waitTime = 650;
+        } else {
+            status.setText("Mishi consulta las estrellas...");
+        }
 
-        PauseTransition pause = new PauseTransition(Duration.millis(gameMode == GameMode.MACHINE_VS_MACHINE ? 650 : 450));
+        PauseTransition pause = new PauseTransition(Duration.millis(waitTime));
         pause.setOnFinished(event -> playMachineTurn());
         pause.play();
     }
@@ -411,9 +423,10 @@ public final class GameView extends StackPane {
     }
 
     private void showDecision(Decision decision) {
-        String actor = gameMode == GameMode.MACHINE_VS_MACHINE
-                ? "Mishi " + game.currentTurn().opposite().symbol()
-                : "Mishi";
+        String actor = "Mishi";
+        if (gameMode == GameMode.MACHINE_VS_MACHINE) {
+            actor = "Mishi " + game.currentTurn().opposite().symbol();
+        }
         StringBuilder text = new StringBuilder();
         text.append(actor).append(" eligió ").append(decision.getMove().display()).append('.').append('\n');
         text.append("Valor minimax: ").append(decision.getMinimaxValue()).append("\n\n");
@@ -463,7 +476,7 @@ public final class GameView extends StackPane {
             user.addDraw();
             showResult("✦", "Órbita compartida", "Empate, " + user.getName() + ". Ningún tripulante conquistó esta galaxia.");
         } else if (gameMode == GameMode.PLAYER_VS_PLAYER) {
-            Mark winner = result == GameResult.X_WINS ? Mark.X : Mark.O;
+            Mark winner = getWinner(result);
             if (winner == game.playerOneMark()) {
                 user.addWin();
                 showResult("★", "¡Jugador 1 gana!", "La ficha " + winner.symbol() + " conquistó la galaxia.");
@@ -472,7 +485,7 @@ public final class GameView extends StackPane {
                 showResult("★", "¡Jugador 2 gana!", "La ficha " + winner.symbol() + " conquistó la galaxia.");
             }
         } else {
-            Mark winner = result == GameResult.X_WINS ? Mark.X : Mark.O;
+            Mark winner = getWinner(result);
             if (winner == game.humanMark()) {
                 user.addWin();
                 showResult("★", "¡Misión cumplida!", "Ganaste, " + user.getName() + ". Mishi reconoce tu destreza espacial.");
@@ -487,12 +500,23 @@ public final class GameView extends StackPane {
     }
 
     private String resultTitleForMachineGame(GameResult result) {
-        return switch (result) {
-            case DRAW -> "Equilibrio cósmico";
-            case X_WINS -> "Gana Mishi X";
-            case O_WINS -> "Gana Mishi O";
-            case IN_PROGRESS -> "Partida en curso";
-        };
+        if (result == GameResult.DRAW) {
+            return "Equilibrio cósmico";
+        }
+        if (result == GameResult.X_WINS) {
+            return "Gana Mishi X";
+        }
+        if (result == GameResult.O_WINS) {
+            return "Gana Mishi O";
+        }
+        return "Partida en curso";
+    }
+
+    private Mark getWinner(GameResult result) {
+        if (result == GameResult.X_WINS) {
+            return Mark.X;
+        }
+        return Mark.O;
     }
 
     private void showDecisionTree() {
@@ -521,11 +545,17 @@ public final class GameView extends StackPane {
     private void updateStatus() {
         if (!playing) return;
         if (game.isMachineTurn()) {
-            status.setText(gameMode == GameMode.MACHINE_VS_MACHINE
-                    ? "Mishi está pensando..."
-                    : "Turno de Mishi");
+            if (gameMode == GameMode.MACHINE_VS_MACHINE) {
+                status.setText("Mishi está pensando...");
+            } else {
+                status.setText("Turno de Mishi");
+            }
         } else if (gameMode == GameMode.PLAYER_VS_PLAYER) {
-            status.setText("Turno del Jugador " + (game.currentTurn() == game.playerOneMark() ? "1" : "2") + " (" + game.currentTurn().symbol() + ")");
+            String playerNumber = "2";
+            if (game.currentTurn() == game.playerOneMark()) {
+                playerNumber = "1";
+            }
+            status.setText("Turno del Jugador " + playerNumber + " (" + game.currentTurn().symbol() + ")");
         } else {
             status.setText(user.getName() + ", es tu turno: elige una órbita libre");
         }
