@@ -27,7 +27,7 @@ public final class LoginView extends StackPane {
         this.onEnter = onEnter;
         getStyleClass().add("login-root");
 
-        Image image = new Image(getClass().getResourceAsStream("/images/astronaut-cat.png"));
+        Image image = new Image(getClass().getResourceAsStream("/images/momazos.jpeg"));
         ImageView background = new ImageView(image);
         background.setPreserveRatio(false);
         background.fitWidthProperty().bind(widthProperty());
@@ -82,11 +82,19 @@ public final class LoginView extends StackPane {
             return;
         }
 
-        User user = repository.login(email, password);
-        if (user == null) {
-            error.setText("Correo o contraseña incorrectos");
+        if (repository.findByEmail(email) == null) {
+            error.setText("Esta cuenta no está registrada. Debes crear una cuenta.");
+            SoundPlayer.playError();
             return;
         }
+
+        User user = repository.login(email, password);
+        if (user == null) {
+            error.setText("La contraseña es incorrecta");
+            SoundPlayer.playError();
+            return;
+        }
+        SoundPlayer.playSuccess();
         onEnter.accept(user);
     }
 
@@ -108,6 +116,7 @@ public final class LoginView extends StackPane {
 
         registrationEmail = email;
         registrationPassword = password;
+        SoundPlayer.playClick();
         showNameForm();
     }
 
@@ -144,8 +153,10 @@ public final class LoginView extends StackPane {
         User user = repository.register(registrationEmail, registrationPassword, name);
         if (user == null) {
             error.setText("No se pudo crear el usuario");
+            SoundPlayer.playError();
             return;
         }
+        SoundPlayer.playSuccess();
         onEnter.accept(user);
     }
 

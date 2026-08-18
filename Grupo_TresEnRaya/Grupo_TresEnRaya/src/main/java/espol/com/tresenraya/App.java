@@ -12,25 +12,37 @@ import javafx.stage.Stage;
 
 public final class App extends Application {
     private UserRepository userRepository;
+    private Stage stage;
 
     @Override
     public void start(Stage stage) {
+        this.stage = stage;
         userRepository = new UserRepository();
-        Scene scene = new Scene(new LoginView(userRepository, user -> showGameModes(stage, user)), 1100, 720);
-        scene.getStylesheets().add(App.class.getResource("/styles/game.css").toExternalForm());
         stage.setTitle("Mishi Cósmico");
         stage.setMinWidth(960);
         stage.setMinHeight(680);
-        stage.setScene(scene);
+        showLogin();
         stage.show();
     }
 
-    private void showGameModes(Stage stage, User user) {
-        stage.getScene().setRoot(new GameModeView(user, mode -> showGame(stage, user, mode)));
+    private void showLogin() {
+        LoginView loginView = new LoginView(userRepository, this::showGameModes);
+        if (stage.getScene() == null) {
+            Scene scene = new Scene(loginView, 1100, 720);
+            scene.getStylesheets().add(App.class.getResource("/styles/game.css").toExternalForm());
+            stage.setScene(scene);
+        } else {
+            stage.getScene().setRoot(loginView);
+        }
     }
 
-    private void showGame(Stage stage, User user, GameMode mode) {
-        stage.getScene().setRoot(new GameView(user, userRepository, mode, () -> showGameModes(stage, user)));
+    private void showGameModes(User user) {
+        stage.getScene().setRoot(new GameModeView(user, mode -> showGame(user, mode)));
+    }
+
+    private void showGame(User user, GameMode mode) {
+        stage.getScene().setRoot(new GameView(user, userRepository, mode,
+                () -> showGameModes(user), this::showLogin));
     }
 
     public static void main(String[] args) {

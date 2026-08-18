@@ -1,9 +1,10 @@
 # Tres en raya con JavaFX
 
-Proyecto Maven compatible con NetBeans que implementa un juego contra la computadora.
+Proyecto Maven compatible con NetBeans que implementa un juego de tres en raya con diferentes modos de partida.
 
-La aplicación incluye una pantalla de entrada con nombre de jugador, una interfaz de temática espacial felina,
-fondos que cambian en cada partida y una explicación opcional de las decisiones de minimax.
+La aplicación permite jugar persona contra persona, persona contra Mishi y Mishi contra Mishi. También incluye
+una interfaz de temática espacial felina, fondos que cambian cada 10 segundos, fichas neón, sonidos, ranking
+y una explicación opcional de las decisiones de minimax.
 
 Los usuarios se registran con correo, contraseña y nombre. Sus resultados se guardan localmente en
 `data/users.dat` mediante serialización.

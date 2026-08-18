@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 
 public final class GameModeView extends StackPane {
 
-    private static final String BACKGROUND = "/images/purple-galaxy.jpeg";
+    private static final String BACKGROUND = "/images/momazos.jpeg";
 
     private final User user;
     private final Consumer<GameMode> onModeSelected;
