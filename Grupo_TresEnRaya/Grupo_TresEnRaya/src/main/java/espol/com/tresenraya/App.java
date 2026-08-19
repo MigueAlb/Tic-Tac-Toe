@@ -49,7 +49,11 @@ public final class App extends Application {
                 user, userRepository, mode,
                 () -> showGameModes(user),
                 null,
-                saved -> showSavedGame(stage, user, saved)));
+                saved -> showSavedGame(stage, user, saved),
+                () ->
+                {
+                    showLogin();
+                }));
     }
 
     private void showSavedGame(Stage stage, User user, SavedGame savedGame) {
@@ -57,7 +61,11 @@ public final class App extends Application {
                 user, userRepository, savedGame.getGameMode(),
                 () -> showGameModes(user),
                 savedGame,
-                saved -> showSavedGame(stage, user, saved)));
+                saved -> showSavedGame(stage, user, saved),
+                () ->
+                {
+                    showLogin();
+                }));
     }
 
     public static void main(String[] args) {
