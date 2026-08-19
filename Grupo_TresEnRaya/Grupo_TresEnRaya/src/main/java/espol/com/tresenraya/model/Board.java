@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public final class Board {
+public final class Board implements java.io.Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     public static final int SIZE = 3;
     private final Mark[][] cells;
@@ -266,6 +268,33 @@ public final class Board {
         }
 
         return true;
+    }
+
+    public static Board fromCompact(String compact) {
+        if (compact == null || compact.length() != SIZE * SIZE) {
+            throw new IllegalArgumentException("Representación de tablero inválida");
+        }
+
+        Board board = new Board();
+        for (int index = 0; index < compact.length(); index++) {
+            char value = compact.charAt(index);
+            Mark mark;
+            if (value == '-') {
+                mark = Mark.EMPTY;
+            } else if (value == 'X') {
+                mark = Mark.X;
+            } else if (value == 'O') {
+                mark = Mark.O;
+            } else {
+                throw new IllegalArgumentException("Símbolo de tablero inválido: " + value);
+            }
+            if (mark != Mark.EMPTY) {
+                int row = index / SIZE;
+                int column = index % SIZE;
+                board = board.place(new Move(row, column), mark);
+            }
+        }
+        return board;
     }
 
     public String compact() {
